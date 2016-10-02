@@ -1,5 +1,12 @@
 package com.tarasantoshchuk.test_suite_generator;
 
+import com.squareup.javapoet.AnnotationSpec;
+import com.squareup.javapoet.JavaFile;
+import com.squareup.javapoet.TypeSpec;
+
+import org.junit.runner.RunWith;
+import org.junit.runners.Suite;
+
 import java.io.IOException;
 import java.io.Writer;
 import java.util.LinkedHashSet;
@@ -12,6 +19,7 @@ import javax.annotation.processing.ProcessingEnvironment;
 import javax.annotation.processing.RoundEnvironment;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.Element;
+import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
@@ -46,11 +54,32 @@ public class AnnotationProcessor extends AbstractProcessor {
     public boolean process(Set<? extends TypeElement> set, RoundEnvironment roundEnvironment) {
         for (Element annotatedElement : roundEnvironment.getElementsAnnotatedWith(UiTest.class)) {
             try {
-                JavaFileObject file = filer.createSourceFile("com.tarasantoshchuk.test_suites_generator.GeneratedClass");
-                Writer writer = file.openWriter();
-                writer.write("AAaAAA");
-                writer.flush();
+                AnnotationSpec runWithAnnotation = AnnotationSpec
+                        .builder(RunWith.class)
+                        .addMember("value", "$T.class", Suite.class)
+                        .build();
+
+                AnnotationSpec suiteClassesAnnotation = AnnotationSpec
+                        .builder(Suite.SuiteClasses.class)
+                        .addMember("value", "{$T.class}", annotatedElement)
+                        .build();
+
+                TypeSpec helloWorld = TypeSpec.classBuilder("HelloWorld")
+                        .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
+                        .addAnnotation(runWithAnnotation)
+                        .addAnnotation(suiteClassesAnnotation)
+                        .build();
+
+                JavaFile javaFile = JavaFile.builder("com.example.helloworld", helloWorld)
+                        .build();
+
+                Writer writer = filer
+                        .createSourceFile("com.example.helloworld.HelloWorld")
+                        .openWriter();
+                writer
+                        .write(javaFile.toString());
                 writer.close();
+
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }

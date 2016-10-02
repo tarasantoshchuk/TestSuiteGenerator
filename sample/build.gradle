@@ -20,6 +20,7 @@ android {
 }
 
 dependencies {
+    compile 'junit:junit:4.12'
     provided project(path: ':annotations')
     apt project(path: ':codegen')
 }
