@@ -1,4 +1,4 @@
-package com.tarasantoshchuk.test_suite_generator;
+package com.tarasantoshchuk.test_suites_generator;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -8,4 +8,5 @@ import java.lang.annotation.Target;
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.SOURCE)
 public @interface UiTest {
+    String suiteName() default "";
 }

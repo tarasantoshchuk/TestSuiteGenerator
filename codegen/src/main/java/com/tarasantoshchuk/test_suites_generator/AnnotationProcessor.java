@@ -1,14 +1,13 @@
-package com.tarasantoshchuk.test_suite_generator;
+package com.tarasantoshchuk.test_suites_generator;
 
-import com.squareup.javapoet.AnnotationSpec;
-import com.squareup.javapoet.JavaFile;
-import com.squareup.javapoet.TypeSpec;
-
-import org.junit.runner.RunWith;
-import org.junit.runners.Suite;
+import com.tarasantoshchuk.test_suites_generator.model.AnnotatedClass;
+import com.tarasantoshchuk.test_suites_generator.model.SuiteModel;
+import com.tarasantoshchuk.test_suites_generator.model.SuiteType;
 
 import java.io.IOException;
 import java.io.Writer;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
@@ -19,11 +18,9 @@ import javax.annotation.processing.ProcessingEnvironment;
 import javax.annotation.processing.RoundEnvironment;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.Element;
-import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
-import javax.tools.JavaFileObject;
 
 public class AnnotationProcessor extends AbstractProcessor {
     private Types typeUtils;
@@ -52,36 +49,45 @@ public class AnnotationProcessor extends AbstractProcessor {
 
     @Override
     public boolean process(Set<? extends TypeElement> set, RoundEnvironment roundEnvironment) {
+
+        ArrayList<AnnotatedClass> list = new ArrayList<>();
+        for (Element annotatedElement : roundEnvironment.getElementsAnnotatedWith(UnitTest.class)) {
+            list.add(
+                    new AnnotatedClass(
+                            annotatedElement.getAnnotation(UnitTest.class).suiteName(),
+                            SuiteType.UNIT_TESTS,
+                            (TypeElement) annotatedElement
+                    )
+            );
+        }
+
         for (Element annotatedElement : roundEnvironment.getElementsAnnotatedWith(UiTest.class)) {
+            list.add(
+                    new AnnotatedClass(
+                            annotatedElement.getAnnotation(UiTest.class).suiteName(),
+                            SuiteType.UI_TESTS,
+                            (TypeElement) annotatedElement
+                    )
+            );
+        }
+
+        if (list.isEmpty()) {
+            return true;
+        }
+
+        Collection<SuiteModel> suites = SuiteModel.generateSuiteModelClasses(list);
+
+        for (SuiteModel suite: suites) {
+            Writer writer;
             try {
-                AnnotationSpec runWithAnnotation = AnnotationSpec
-                        .builder(RunWith.class)
-                        .addMember("value", "$T.class", Suite.class)
-                        .build();
-
-                AnnotationSpec suiteClassesAnnotation = AnnotationSpec
-                        .builder(Suite.SuiteClasses.class)
-                        .addMember("value", "{$T.class}", annotatedElement)
-                        .build();
-
-                TypeSpec helloWorld = TypeSpec.classBuilder("HelloWorld")
-                        .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
-                        .addAnnotation(runWithAnnotation)
-                        .addAnnotation(suiteClassesAnnotation)
-                        .build();
-
-                JavaFile javaFile = JavaFile.builder("com.example.helloworld", helloWorld)
-                        .build();
-
-                Writer writer = filer
-                        .createSourceFile("com.example.helloworld.HelloWorld")
+                writer = filer
+                        .createSourceFile(suite.getSuitePackage()+ "." + suite.getName())
                         .openWriter();
                 writer
-                        .write(javaFile.toString());
+                        .write(suite.generateClassCode());
                 writer.close();
-
             } catch (IOException e) {
-                throw new RuntimeException(e);
+                e.printStackTrace();
             }
         }
         return true;
