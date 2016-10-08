@@ -4,12 +4,12 @@ public enum SuiteType {
     UNIT_TESTS("UnitTest"),
     UI_TESTS("UiTest");
 
-    private String mNamePrefix;
-    SuiteType(String namePrefix) {
-        mNamePrefix = namePrefix;
+    private String mNameSuffix;
+    SuiteType(String nameSuffix) {
+        mNameSuffix = nameSuffix;
     }
 
-    public String namePrefix() {
-        return mNamePrefix;
+    public String nameSuffix() {
+        return mNameSuffix;
     }
 }

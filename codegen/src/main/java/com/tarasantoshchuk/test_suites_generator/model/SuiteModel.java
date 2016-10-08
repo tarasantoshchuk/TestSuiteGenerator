@@ -12,10 +12,13 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
+import java.util.regex.Pattern;
 
 import javax.lang.model.element.Modifier;
 
 public class SuiteModel {
+    private static final String NAME_POSTFIX = "Suite";
+
     private String mSuiteName;
     private SuiteType mSuiteType;
     private List<AnnotatedClass> mSuiteComponents = new ArrayList<>();
@@ -58,11 +61,11 @@ public class SuiteModel {
         }
 
 
-        String[] packageTokens = mSuiteComponents.get(0).getClassName().packageName().split("\\\\.");
+        String[] packageTokens = mSuiteComponents.get(0).getClassName().packageName().split(Pattern.quote("."));
         int lastMatchedTokenIndex = packageTokens.length;
 
         for (AnnotatedClass annotatedClass: mSuiteComponents) {
-            String[] thisPackageTokens = annotatedClass.getClassName().packageName().split("\\\\.");
+            String[] thisPackageTokens = annotatedClass.getClassName().packageName().split(Pattern.quote("."));
             lastMatchedTokenIndex = Math.min(lastMatchedTokenIndex, thisPackageTokens.length);
             lastMatchedTokenIndex = getLastMatchedTokenIndex(packageTokens, thisPackageTokens, lastMatchedTokenIndex);
         }
@@ -70,12 +73,11 @@ public class SuiteModel {
         return buildPackageName(packageTokens, lastMatchedTokenIndex);
     }
 
-    private int getLastMatchedTokenIndex(String[] packageTokens, String[] thisPackageTokens, int lastMatchedTokenIndex) {
+    static int getLastMatchedTokenIndex(String[] packageTokens, String[] thisPackageTokens, int lastMatchedTokenIndex) {
         int result = 0;
         while(result < lastMatchedTokenIndex) {
             if(!packageTokens[result].equals(thisPackageTokens[result])) {
-                //fixme shitty fix to make it work at least somehow
-                return lastMatchedTokenIndex;
+                break;
             }
             result++;
         }
@@ -131,12 +133,12 @@ public class SuiteModel {
         SuiteModel defaultSuite = new SuiteModel("", suiteType);
         testSuites.put("", defaultSuite);
         for(AnnotatedClass annotatedClass: list) {
-            if (annotatedClass.getmSuiteType() == suiteType) {
-                SuiteModel suiteModel = testSuites.get(annotatedClass.getmSuiteName());
+            if (annotatedClass.getSuiteType() == suiteType) {
+                SuiteModel suiteModel = testSuites.get(annotatedClass.getSuiteName());
 
                 if (suiteModel == null) {
-                    suiteModel = new SuiteModel(annotatedClass.getmSuiteName(), suiteType);
-                    testSuites.put(annotatedClass.getmSuiteName(), suiteModel);
+                    suiteModel = new SuiteModel(annotatedClass.getSuiteName(), suiteType);
+                    testSuites.put(annotatedClass.getSuiteName(), suiteModel);
                 }
 
                 suiteModel.addSuiteComponent(annotatedClass);
@@ -151,6 +153,6 @@ public class SuiteModel {
     }
 
     public String getName() {
-        return mSuiteName + mSuiteType.namePrefix() + "Suite";
+        return mSuiteName + mSuiteType.nameSuffix() + NAME_POSTFIX;
     }
 }

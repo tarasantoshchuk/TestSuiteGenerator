@@ -9,25 +9,21 @@ public class AnnotatedClass {
     private SuiteType mSuiteType;
     private TypeElement mTypeElement;
 
-    public AnnotatedClass(String mSuiteName, SuiteType mSuiteType, TypeElement mTypeElement) {
-        this.mSuiteName = mSuiteName;
-        this.mSuiteType = mSuiteType;
-        this.mTypeElement = mTypeElement;
+    public AnnotatedClass(String suiteName, SuiteType suiteType, TypeElement typeElement) {
+        mSuiteName = suiteName;
+        mSuiteType = suiteType;
+        mTypeElement = typeElement;
     }
 
-    public String getmSuiteName() {
+    String getSuiteName() {
         return mSuiteName;
     }
 
-    public SuiteType getmSuiteType() {
+    SuiteType getSuiteType() {
         return mSuiteType;
     }
 
-    public TypeElement getmTypeElement() {
-        return mTypeElement;
-    }
-
-    public ClassName getClassName() {
-        return ClassName.get(getmTypeElement());
+    ClassName getClassName() {
+        return ClassName.get(mTypeElement);
     }
 }
