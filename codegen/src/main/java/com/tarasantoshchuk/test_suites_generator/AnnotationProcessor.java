@@ -1,5 +1,6 @@
 package com.tarasantoshchuk.test_suites_generator;
 
+import com.tarasantoshchuk.test_suites_generator.messager.Messager;
 import com.tarasantoshchuk.test_suites_generator.model.AnnotatedClass;
 import com.tarasantoshchuk.test_suites_generator.model.SuiteModel;
 import com.tarasantoshchuk.test_suites_generator.model.SuiteType;
@@ -13,37 +14,40 @@ import java.util.Set;
 
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.Filer;
-import javax.annotation.processing.Messager;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.annotation.processing.RoundEnvironment;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.TypeElement;
-import javax.lang.model.util.Elements;
-import javax.lang.model.util.Types;
 
 public class AnnotationProcessor extends AbstractProcessor {
-    private Types typeUtils;
-    private Elements elementUtils;
-    private Filer filer;
-    private Messager messager;
+    // milliseconds in 30 days
+    private static final long BROKEN_TEST_LIFESPAN = 30L * 24 * 60 * 60 * 1000;
 
-    @Override public synchronized void init(ProcessingEnvironment processingEnv) {
+    private Filer mFiler;
+    private Messager mMessager;
+
+    @Override
+    public synchronized void init(ProcessingEnvironment processingEnv) {
         super.init(processingEnv);
-        typeUtils = processingEnv.getTypeUtils();
-        elementUtils = processingEnv.getElementUtils();
-        filer = processingEnv.getFiler();
-        messager = processingEnv.getMessager();
+
+        mFiler = processingEnv.getFiler();
+        mMessager = new Messager(processingEnv.getMessager());
     }
 
-    @Override public Set<String> getSupportedAnnotationTypes() {
+    @Override
+    public Set<String> getSupportedAnnotationTypes() {
         Set<String> annotations = new LinkedHashSet<>();
+
         annotations.add(UiTest.class.getCanonicalName());
         annotations.add(UnitTest.class.getCanonicalName());
+        annotations.add(BrokenTest.class.getCanonicalName());
+
         return annotations;
     }
 
-    @Override public SourceVersion getSupportedSourceVersion() {
+    @Override
+    public SourceVersion getSupportedSourceVersion() {
         return SourceVersion.latestSupported();
     }
 
@@ -71,6 +75,22 @@ public class AnnotationProcessor extends AbstractProcessor {
             );
         }
 
+        for (Element annotatedElement : roundEnvironment.getElementsAnnotatedWith(BrokenTest.class)) {
+            BrokenTest brokenTest = annotatedElement.getAnnotation(BrokenTest.class);
+            long brokenSince = brokenTest.brokenSince();
+            
+            if (System.currentTimeMillis() - brokenSince < BROKEN_TEST_LIFESPAN) {
+                mMessager.warn(
+                        String.format("broken test found, make sure it is fixed by %s", brokenSince + BROKEN_TEST_LIFESPAN), 
+                        annotatedElement);
+            } else {
+                mMessager.error(
+                        "broken test found",
+                        annotatedElement
+                );
+            }
+        }
+
         if (list.isEmpty()) {
             return true;
         }
@@ -80,14 +100,14 @@ public class AnnotationProcessor extends AbstractProcessor {
         for (SuiteModel suite: suites) {
             Writer writer;
             try {
-                writer = filer
+                writer = mFiler
                         .createSourceFile(suite.getSuitePackage()+ "." + suite.getName())
                         .openWriter();
                 writer
                         .write(suite.generateClassCode());
                 writer.close();
             } catch (IOException e) {
-                e.printStackTrace();
+                mMessager.warn(e.getMessage(), null);
             }
         }
         return true;
