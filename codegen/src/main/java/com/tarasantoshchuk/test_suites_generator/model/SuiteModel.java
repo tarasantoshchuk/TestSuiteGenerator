@@ -21,14 +21,14 @@ public class SuiteModel {
 
     private String mSuiteName;
     private SuiteType mSuiteType;
-    private List<AnnotatedClass> mSuiteComponents = new ArrayList<>();
+    private List<SuiteComponentModel> mSuiteComponents = new ArrayList<>();
 
     public SuiteModel(String suiteName, SuiteType suiteType) {
-        this.mSuiteName = suiteName;
-        this.mSuiteType = suiteType;
+        mSuiteName = suiteName;
+        mSuiteType = suiteType;
     }
 
-    public void addSuiteComponent(AnnotatedClass suiteComponent) {
+    public void addSuiteComponent(SuiteComponentModel suiteComponent) {
         mSuiteComponents.add(suiteComponent);
     }
 
@@ -60,12 +60,11 @@ public class SuiteModel {
             return "com.tarasantoshchuk.test_suite_generator";
         }
 
-
         String[] packageTokens = mSuiteComponents.get(0).getClassName().packageName().split(Pattern.quote("."));
         int lastMatchedTokenIndex = packageTokens.length;
 
-        for (AnnotatedClass annotatedClass: mSuiteComponents) {
-            String[] thisPackageTokens = annotatedClass.getClassName().packageName().split(Pattern.quote("."));
+        for (SuiteComponentModel suiteComponentModel : mSuiteComponents) {
+            String[] thisPackageTokens = suiteComponentModel.getClassName().packageName().split(Pattern.quote("."));
             lastMatchedTokenIndex = Math.min(lastMatchedTokenIndex, thisPackageTokens.length);
             lastMatchedTokenIndex = getLastMatchedTokenIndex(packageTokens, thisPackageTokens, lastMatchedTokenIndex);
         }
@@ -96,7 +95,7 @@ public class SuiteModel {
         return builder.toString();
     }
 
-    private ClassName[] toClassNames(List<AnnotatedClass> classes) {
+    private ClassName[] toClassNames(List<SuiteComponentModel> classes) {
         ClassName[] classNames = new ClassName[classes.size()];
         for(int i = 0; i < classes.size(); i++) {
             classNames[i] = classes.get(i).getClassName();
@@ -116,7 +115,7 @@ public class SuiteModel {
         return builder.toString();
     }
 
-    public static Collection<SuiteModel> generateSuiteModelClasses(List<AnnotatedClass> list) {
+    public static Collection<SuiteModel> assembleSuiteModels(List<SuiteComponentModel> list) {
         Collection<SuiteModel> unitTestSuites = generateTestSuites(list, SuiteType.UNIT_TESTS);
         Collection<SuiteModel> uiTestSuites = generateTestSuites(list, SuiteType.UI_TESTS);
 
@@ -127,24 +126,24 @@ public class SuiteModel {
         return result;
     }
 
-    private static Collection<SuiteModel> generateTestSuites(List<AnnotatedClass> list, SuiteType suiteType) {
+    private static Collection<SuiteModel> generateTestSuites(List<SuiteComponentModel> list, SuiteType suiteType) {
         HashMap<String, SuiteModel> testSuites = new HashMap<>();
 
         SuiteModel defaultSuite = new SuiteModel("", suiteType);
         testSuites.put("", defaultSuite);
-        for(AnnotatedClass annotatedClass: list) {
-            if (annotatedClass.getSuiteType() == suiteType) {
-                SuiteModel suiteModel = testSuites.get(annotatedClass.getSuiteName());
+        for(SuiteComponentModel suiteComponentModel : list) {
+            if (suiteComponentModel.getSuiteType() == suiteType) {
+                SuiteModel suiteModel = testSuites.get(suiteComponentModel.getSuiteName());
 
                 if (suiteModel == null) {
-                    suiteModel = new SuiteModel(annotatedClass.getSuiteName(), suiteType);
-                    testSuites.put(annotatedClass.getSuiteName(), suiteModel);
+                    suiteModel = new SuiteModel(suiteComponentModel.getSuiteName(), suiteType);
+                    testSuites.put(suiteComponentModel.getSuiteName(), suiteModel);
                 }
 
-                suiteModel.addSuiteComponent(annotatedClass);
+                suiteModel.addSuiteComponent(suiteComponentModel);
 
                 if (suiteModel != defaultSuite) {
-                    defaultSuite.addSuiteComponent(annotatedClass);
+                    defaultSuite.addSuiteComponent(suiteComponentModel);
                 }
             }
         }
@@ -154,5 +153,9 @@ public class SuiteModel {
 
     public String getName() {
         return mSuiteName + mSuiteType.nameSuffix() + NAME_POSTFIX;
+    }
+
+    public String getQualifiedName() {
+        return getSuitePackage() + "." + getName();
     }
 }

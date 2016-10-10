@@ -4,12 +4,12 @@ import com.squareup.javapoet.ClassName;
 
 import javax.lang.model.element.TypeElement;
 
-public class AnnotatedClass {
+public class SuiteComponentModel {
     private String mSuiteName;
     private SuiteType mSuiteType;
     private TypeElement mTypeElement;
 
-    public AnnotatedClass(String suiteName, SuiteType suiteType, TypeElement typeElement) {
+    public SuiteComponentModel(String suiteName, SuiteType suiteType, TypeElement typeElement) {
         mSuiteName = suiteName;
         mSuiteType = suiteType;
         mTypeElement = typeElement;

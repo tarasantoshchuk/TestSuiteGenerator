@@ -13,10 +13,8 @@ public class Messager {
     public void warn(String message, Element element) {
         mMessager.printMessage(Diagnostic.Kind.WARNING, message, element);
     }
+
     public void error(String message, Element element) {
         mMessager.printMessage(Diagnostic.Kind.ERROR, message, element);
-    }
-    public void info(String message, Element element) {
-        mMessager.printMessage(Diagnostic.Kind.NOTE, message, element);
     }
 }
