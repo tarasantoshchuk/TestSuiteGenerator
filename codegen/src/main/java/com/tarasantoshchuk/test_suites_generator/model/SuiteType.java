@@ -7,7 +7,8 @@ import java.lang.annotation.Annotation;
 
 public enum SuiteType {
     UNIT_TESTS("UnitTest"),
-    UI_TESTS("UiTest");
+    UI_TESTS("UiTest"),
+    ALL_TESTS("Test");
 
     private String mNameSuffix;
     SuiteType(String nameSuffix) {

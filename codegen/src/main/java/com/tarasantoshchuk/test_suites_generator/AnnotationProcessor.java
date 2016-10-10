@@ -1,7 +1,7 @@
 package com.tarasantoshchuk.test_suites_generator;
 
 import com.tarasantoshchuk.test_suites_generator.messager.Messager;
-import com.tarasantoshchuk.test_suites_generator.model.AnnotatedClass;
+import com.tarasantoshchuk.test_suites_generator.model.SuiteComponentModel;
 import com.tarasantoshchuk.test_suites_generator.model.SuiteModel;
 import com.tarasantoshchuk.test_suites_generator.model.SuiteType;
 
@@ -10,6 +10,7 @@ import java.io.Writer;
 import java.lang.annotation.Annotation;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Date;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
@@ -56,57 +57,72 @@ public class AnnotationProcessor extends AbstractProcessor {
 
     @Override
     public boolean process(Set<? extends TypeElement> set, RoundEnvironment roundEnvironment) {
-        final ArrayList<AnnotatedClass> list = new ArrayList<>();
+        final ArrayList<SuiteComponentModel> list = new ArrayList<>();
 
         traceAnnotatedClasses(roundEnvironment, UnitTest.class, new AnnotatedClassIterator<UnitTest>() {
             @Override
             public void onAnnotatedClass(TypeElement annotatedElement, UnitTest annotation) {
-                list.add(
-                        new AnnotatedClass(
-                                annotation.suiteName(),
-                                SuiteType.forAnnotation(UnitTest.class),
-                                annotatedElement
-                        )
-                );
+                /**
+                 * skip and raise error for elements with {@link BrokenTest} annotation - unit tests should be fixed immediately
+                 */
+                if (!hasAnnotation(annotatedElement, BrokenTest.class)) {
+                    list.add(
+                            new SuiteComponentModel(
+                                    annotation.suiteName(),
+                                    SuiteType.forAnnotation(UnitTest.class),
+                                    annotatedElement
+                            )
+                    );
+                } else {
+                    mMessager.error("broken unit test - should be fixed immediately", annotatedElement);
+                }
             }
         });
 
         traceAnnotatedClasses(roundEnvironment, UiTest.class, new AnnotatedClassIterator<UiTest>() {
             @Override
             public void onAnnotatedClass(TypeElement annotatedElement, UiTest annotation) {
-                list.add(
-                        new AnnotatedClass(
-                                annotation.suiteName(),
-                                SuiteType.forAnnotation(UiTest.class),
-                                annotatedElement
-                        )
-                );
+                /**
+                 * broken ui tests is allowed, warnings/errors for them are raised during {@link BrokenTest} annotation processing
+                 */
+                if (!hasAnnotation(annotatedElement, BrokenTest.class)) {
+                    list.add(
+                            new SuiteComponentModel(
+                                    annotation.suiteName(),
+                                    SuiteType.forAnnotation(UiTest.class),
+                                    annotatedElement
+                            )
+                    );
+                }
             }
         });
 
-        for (Element annotatedElement : roundEnvironment.getElementsAnnotatedWith(BrokenTest.class)) {
-            BrokenTest brokenTest = annotatedElement.getAnnotation(BrokenTest.class);
-            long brokenSince = brokenTest.brokenSince();
-            
-            if (System.currentTimeMillis() - brokenSince < BROKEN_TEST_LIFESPAN) {
-                mMessager.warn(
-                        String.format("broken test found, make sure it is fixed by %s", brokenSince + BROKEN_TEST_LIFESPAN), 
-                        annotatedElement);
-            } else {
-                mMessager.error(
-                        "broken test found",
-                        annotatedElement
-                );
+        traceAnnotatedClasses(roundEnvironment, BrokenTest.class, new AnnotatedClassIterator<BrokenTest>() {
+            @Override
+            public void onAnnotatedClass(TypeElement annotatedElement, BrokenTest annotation) {
+                long brokenSince = annotation.brokenSince();
+
+                long maxFixTime = brokenSince + BROKEN_TEST_LIFESPAN;
+                Date maxFixDate = new Date(maxFixTime);
+
+                if (System.currentTimeMillis() - brokenSince < BROKEN_TEST_LIFESPAN) {
+                    mMessager.warn(
+                            String.format("broken test found, make sure it is fixed by %s", maxFixDate),
+                            annotatedElement);
+                } else {
+                    mMessager.error(
+                            String.format("broken test found, should have been fixed by %s", maxFixDate),
+                            annotatedElement
+                    );
+                }
             }
+        });
+
+        //if there are annotated classes - generate test suites
+        if (!list.isEmpty()) {
+            Collection<SuiteModel> suites = SuiteModel.assembleSuiteModels(list);
+            createSuiteClasses(suites);
         }
-
-        if (list.isEmpty()) {
-            return true;
-        }
-
-        Collection<SuiteModel> suites = SuiteModel.generateSuiteModelClasses(list);
-
-        createSuiteClasses(suites);
         return true;
     }
 
@@ -115,7 +131,7 @@ public class AnnotationProcessor extends AbstractProcessor {
             Writer writer;
             try {
                 writer = mFiler
-                        .createSourceFile(suite.getSuitePackage()+ "." + suite.getName())
+                        .createSourceFile(suite.getQualifiedName())
                         .openWriter();
                 writer
                         .write(suite.generateClassCode());
@@ -148,6 +164,10 @@ public class AnnotationProcessor extends AbstractProcessor {
             mMessager.error("Annotated element is not a class", element);
             return null;
         }
+    }
+
+    private boolean hasAnnotation(Element element, Class<? extends Annotation> annotationClass) {
+        return element.getAnnotation(annotationClass) != null;
     }
 
     private interface AnnotatedClassIterator<T> {
